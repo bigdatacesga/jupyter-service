@@ -1,0 +1,7 @@
+Flask==0.11
+requests==2.10.0
+kvstore
+configuration-registry
+python-keyczar
+coverage
+paramiko

@@ -1,0 +1,11 @@
+#!/bin/bash
+# Get the IP address of the external network
+IPADDR=$(hostname -I | cut -d' ' -f1)
+
+# Generate a password
+echo "Please, type a password to protect the notebook"
+PASSWD=$(python -c 'from notebook.auth import passwd; p=passwd(); print p')
+
+# Start the pyspark jupyter notebook
+PYSPARK_DRIVER_PYTHON=jupyter PYSPARK_DRIVER_PYTHON_OPTS="notebook --no-browser --NotebookApp.password='$PASSWD' --ip='$IPADDR'" pyspark
+
