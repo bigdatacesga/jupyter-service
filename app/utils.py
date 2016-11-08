@@ -35,7 +35,7 @@ class ProcessPool(object):
     def from_user(self, user):
         if user in self._pool:
             return self._pool[user]
-        return []
+        return {}
 
 
 def public_ip_address():

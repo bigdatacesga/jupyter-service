@@ -20,6 +20,7 @@ pool = utils.ProcessPool()
 @restricted(role='ROLE_USER')
 def start_server():
     """Start a new jupyter server"""
+    app.logger.info('Request to start a new jupyter server')
     address = utils.public_ip_address()
     port = utils.next_free_port()
     proc = start_jupyter(address, port)
@@ -50,7 +51,7 @@ def list_active_servers(username):
     if username != g.user:
         return jsonify({'status': 401, 'error': 'unauthorized'}), 401
     procs = pool.from_user(username)
-    return jsonify({'sessions': procs})
+    return jsonify({'sessions': procs.keys()})
 
 
 @api.route('/servers/<username>/<session>', methods=['GET'])
@@ -73,9 +74,10 @@ def start_jupyter(address, port):
              #PYSPARK_DRIVER_PYTHON_OPTS="notebook --no-browser --ip={} --port={}" \
              #pyspark'''.format(address, port)
 
-    cmd = ['sudo', '-u', g.user, '-i', START_JUPYTER_SCRIPT, address, port]
+    cmd = ['sudo', '-u', g.user, '-i', START_JUPYTER_SCRIPT, address, str(port)]
+    app.logger.info('CMD: {}'.format(cmd))
     return subprocess.Popen(cmd, stdout=subprocess.PIPE,
-                            stderr=subprocess.PIPE, shell=True)
+                            stderr=subprocess.PIPE, bufsize=1)
 
 def read_pipe_output_nonblocking(pipe, retVal=''):
     while (select.select([pipe], [], [], 1)[0] != []):
