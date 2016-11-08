@@ -1,13 +1,12 @@
-from flask import abort, jsonify, request, g, url_for
+from flask import jsonify, request, g, url_for
 from . import api, app
 from . import utils
-import json
-import requests
 import registry
 import kvstore
 import subprocess
+import select
 import time
-from .decorators import restricted, asynchronous
+from .decorators import restricted
 
 CONSUL_ENDPOINT = app.config.get('CONSUL_ENDPOINT')
 MESOS_FRAMEWORK_ENDPOINT = app.config.get('MESOS_FRAMEWORK_ENDPOINT')
@@ -37,7 +36,7 @@ def stop_server(username, session):
     """Stops the given server instance"""
     if username != g.user:
         return jsonify({'status': 401, 'error': 'unauthorized'}), 401
-    proc = pool.get_process(username, session)
+    proc = pool.get(username, session)
     if proc:
         proc.terminate()
         pool.remove(username, session)
@@ -46,10 +45,28 @@ def stop_server(username, session):
 
 @api.route('/servers/<username>', methods=['GET'])
 @restricted(role='ROLE_USER')
-def list_active_servers():
+def list_active_servers(username):
     """Get the current list of active servers"""
-    products = registry.query_products() or list()
-    return jsonify({'products': list(set([p.name for p in products]))})
+    if username != g.user:
+        return jsonify({'status': 401, 'error': 'unauthorized'}), 401
+    procs = pool.from_user(username)
+    return jsonify({'sessions': procs})
+
+
+@api.route('/servers/<username>/<session>', methods=['GET'])
+@restricted(role='ROLE_USER')
+def get_session_logs(username, session):
+    """Returns the logs of the given session"""
+    if username != g.user:
+        return jsonify({'status': 401, 'error': 'unauthorized'}), 401
+    proc = pool.get(username, session)
+    stdout = ''
+    stderr = ''
+    if proc:
+        stdout = read_pipe_output_nonblocking(proc.stdout)
+        stderr = read_pipe_output_nonblocking(proc.stderr)
+    return jsonify({'stdout': stdout, 'stderr': stderr})
+
 
 def start_jupyter(address, port):
     #cmd = '''PYSPARK_DRIVER_PYTHON=jupyter \
@@ -57,4 +74,10 @@ def start_jupyter(address, port):
              #pyspark'''.format(address, port)
 
     cmd = ['sudo', '-l', g.user, '-c', 'scripts/start_jupyter_without_password']
-    return subprocess.Popen(cmd, shell=True)
+    return subprocess.Popen(cmd, stdout=subprocess.PIPE,
+                            stderr=subprocess.PIPE, shell=True)
+
+def read_pipe_output_nonblocking(pipe, retVal=''):
+    while (select.select([pipe], [], [], 1)[0] != []):
+        retVal += pipe.read(1)
+        return retVal
