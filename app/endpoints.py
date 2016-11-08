@@ -9,7 +9,7 @@ import time
 from .decorators import restricted
 
 CONSUL_ENDPOINT = app.config.get('CONSUL_ENDPOINT')
-MESOS_FRAMEWORK_ENDPOINT = app.config.get('MESOS_FRAMEWORK_ENDPOINT')
+START_JUPYTER_SCRIPT = app.config.get('START_JUPYTER_SCRIPT')
 
 registry.connect(CONSUL_ENDPOINT)
 kv = kvstore.Client(CONSUL_ENDPOINT)
@@ -24,7 +24,7 @@ def start_server():
     port = utils.next_free_port()
     proc = start_jupyter(address, port)
     jupyter_url = 'http://{}:{}'.format(address, port)
-    jupyter_id = utils.generate_id(g.user + jupyter_url + time.time())
+    jupyter_id = utils.generate_id(g.user + jupyter_url + str(time.time()))
     pool.add(g.user, jupyter_id, proc)
     kv.set('jupyter/{}/{}'.format(g.user, jupyter_id), jupyter_url)
     return '', 201, {'Location': jupyter_url}
@@ -73,7 +73,7 @@ def start_jupyter(address, port):
              #PYSPARK_DRIVER_PYTHON_OPTS="notebook --no-browser --ip={} --port={}" \
              #pyspark'''.format(address, port)
 
-    cmd = ['sudo', '-l', g.user, '-c', 'scripts/start_jupyter_without_password']
+    cmd = ['sudo', '-u', g.user, '-i', START_JUPYTER_SCRIPT, address, port]
     return subprocess.Popen(cmd, stdout=subprocess.PIPE,
                             stderr=subprocess.PIPE, shell=True)
 

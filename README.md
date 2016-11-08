@@ -14,6 +14,10 @@ Installation
     python wsgi.py
 
 
+Copy keyczar keys to:
+
+    /etc/keyczar/keys
+
 Test with:
 
 ```

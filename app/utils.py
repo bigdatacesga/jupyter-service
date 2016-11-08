@@ -33,7 +33,9 @@ class ProcessPool(object):
         return self._pool
 
     def from_user(self, user):
-        return self._pool[user]
+        if user in self._pool:
+            return self._pool[user]
+        return []
 
 
 def public_ip_address():
